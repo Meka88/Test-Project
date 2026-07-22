@@ -36,6 +36,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure GitHub Pages
+        # enablement: true turns GitHub Pages on (with "GitHub Actions" as the
+        # source) automatically, so you don't have to flip it on manually in
+        # Settings > Pages. Requires the `pages: write` permission set above.
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
