@@ -112,6 +112,30 @@ To turn recording on:
 [Meticulous's recorder docs](https://app.meticulous.ai/docs/recorder-installation) for more on
 where else to enable recording (e.g. a staging deployment).
 
+### 1b. Record sessions from a live preview (no local IDE needed)
+
+If you're not running the app from a local IDE, you can record sessions against a **deployed preview**
+instead. [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) builds the app and
+publishes it to **GitHub Pages** at `https://<your-user>.github.io/<repo>/`, so you can just open that
+URL in a browser and click around to generate sessions.
+
+One-time setup:
+
+1. In GitHub: **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
+2. (To record on the preview) add a repository secret named `METICULOUS_RECORDING_TOKEN`
+   (**Settings → Secrets and variables → Actions**) with your Meticulous recording token. The Pages
+   build injects it so the recorder is active on the deployed site. Recording tokens are client-side
+   by design, so it's fine that it ends up in the shipped JS.
+3. Push to `main` (or run the workflow manually from the **Actions** tab). When it finishes, open the
+   Pages URL, interact with the app, and confirm `window.Meticulous` exists in the browser console.
+
+The base path and client-side routing are handled automatically for the `/<repo>/` subpath, and a
+`404.html` fallback is generated so deep links / refreshes work.
+
+> Prefer per-PR preview URLs? Meticulous also supports Vercel/Netlify preview deployments via Cloud
+> Replay — see the [onboarding guide](https://app.meticulous.ai/docs/onboarding-guide). GitHub Pages
+> is used here because it needs no extra accounts.
+
 ### 2. Run Meticulous tests in CI
 
 [`.github/workflows/meticulous.yml`](.github/workflows/meticulous.yml) builds the app and uploads

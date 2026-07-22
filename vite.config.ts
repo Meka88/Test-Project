@@ -5,8 +5,14 @@ import meticulous from '@alwaysmeticulous/recorder-plugin/vite'
 
 const meticulousRecordingToken = process.env.VITE_METICULOUS_RECORDING_TOKEN
 
+// Base public path. Defaults to "/" for local dev and root-hosted deploys.
+// GitHub Pages serves project sites from https://<user>.github.io/<repo>/, so the
+// Pages workflow sets VITE_BASE_PATH to "/<repo>/". See .github/workflows/deploy-pages.yml.
+const base = process.env.VITE_BASE_PATH || '/'
+
 // https://vite.dev/config/
 export default defineConfig({
+  base,
   plugins: [
     react(),
     // Injects the Meticulous session recorder script tag during dev builds
