@@ -1,0 +1,55 @@
+name: Meticulous
+
+# Meticulous replays recorded user sessions against your PR and posts a status
+# check with any visual/behavioural differences it finds.
+# Docs: https://app.meticulous.ai/docs/github-actions-v2
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+# Meticulous needs the full git history to find the base commit, and permission
+# to write the commit status / PR check.
+permissions:
+  actions: write
+  contents: read
+  statuses: write
+  pull-requests: write
+
+# Cancel superseded runs for the same ref to save CI minutes.
+concurrency:
+  group: meticulous-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Meticulous
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build project
+        # METICULOUS_BUILD marks this as a build produced for Meticulous testing.
+        env:
+          METICULOUS_BUILD: "true"
+        run: bun run build
+
+      - name: Run Meticulous tests
+        uses: alwaysmeticulous/report-diffs-action/upload-assets@v1
+        with:
+          api-token: ${{ secrets.METICULOUS_API_TOKEN }}
+          # Vite outputs the built static site to ./dist
+          app-directory: "dist"
