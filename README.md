@@ -105,12 +105,20 @@ To turn recording on:
    VITE_METICULOUS_RECORDING_TOKEN=<your-recording-token>
    ```
 
-4. Restart `bun run dev`. Open the browser console and confirm you see the recorder initialize
-   (and that `window.Meticulous` exists).
+4. **Restart `bun run dev`** (this is required — the token is read when the dev server starts, so a
+   running server won't pick up a newly-added `.env.local`). Then hard-refresh the page, view source,
+   and confirm a `<script ... src="https://snippet.meticulous.ai/...">` tag is present in `<head>`
+   and that `window.Meticulous` exists in the browser console.
 
 `.env.local` is git-ignored, so your token stays local. See
 [Meticulous's recorder docs](https://app.meticulous.ai/docs/recorder-installation) for more on
 where else to enable recording (e.g. a staging deployment).
+
+> **Not seeing the recorder / no sessions in Meticulous?** The most common cause is the dev server
+> not having been restarted after creating `.env.local`. The token is read at startup via Vite's
+> `loadEnv` (see [`vite.config.ts`](vite.config.ts)); if the `<script src="…meticulous…">` tag is
+> missing from the page source, the token isn't being picked up — double-check the file is named
+> exactly `.env.local`, the var is `VITE_METICULOUS_RECORDING_TOKEN`, and you restarted the server.
 
 ### 1b. Record sessions from a live preview (no local IDE needed)
 
