@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Env files (may contain secrets/tokens)
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,11 +30,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Env
-.env
-.env.local
-.env.*.local
-
-# TS build cache
-*.tsbuildinfo

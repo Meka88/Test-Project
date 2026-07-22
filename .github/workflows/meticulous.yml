@@ -1,37 +1,40 @@
-name: Meticulous
-
-# Meticulous replays recorded user sessions against your PR and posts a status
-# check with any visual/behavioural differences it finds.
+# Runs Meticulous.ai visual regression / behavioral tests against this app's
+# built static assets on every push to main and every pull request.
+#
+# Setup:
+#   1. Sign up at https://app.meticulous.ai and create a project for this repo.
+#   2. Add a repo secret named `METICULOUS_API_TOKEN` with your project's API token
+#      (Repo Settings > Secrets and variables > Actions).
+#   3. (Optional, for local dev session recording) copy .env.example to .env.local
+#      and set VITE_METICULOUS_RECORDING_TOKEN — see README.md for details.
+#
+# Until the secret is configured, the "Run Meticulous tests" step below is
+# skipped so this workflow doesn't fail on a fresh checkout.
+#
 # Docs: https://app.meticulous.ai/docs/github-actions-v2
+name: Meticulous Tests
+
 on:
   push:
     branches: [main]
   pull_request: {}
-  workflow_dispatch: {}
+  workflow_dispatch: {} # required for base-commit comparison
 
-# Meticulous needs the full git history to find the base commit, and permission
-# to write the commit status / PR check.
 permissions:
   actions: write
   contents: read
-  statuses: write
+  issues: write
   pull-requests: write
-
-# Cancel superseded runs for the same ref to save CI minutes.
-concurrency:
-  group: meticulous-${{ github.ref }}
-  cancel-in-progress: true
+  statuses: read
 
 jobs:
-  test:
+  meticulous:
     name: Meticulous
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -42,14 +45,18 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build project
-        # METICULOUS_BUILD marks this as a build produced for Meticulous testing.
+        # METICULOUS_BUILD marks this as a build for Meticulous testing.
         env:
-          METICULOUS_BUILD: "true"
+          METICULOUS_BUILD: 'true'
         run: bun run build
 
+      - name: Check whether METICULOUS_API_TOKEN is configured
+        id: check-token
+        run: echo "configured=${{ secrets.METICULOUS_API_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
       - name: Run Meticulous tests
+        if: steps.check-token.outputs.configured == 'true'
         uses: alwaysmeticulous/report-diffs-action/upload-assets@v1
         with:
           api-token: ${{ secrets.METICULOUS_API_TOKEN }}
-          # Vite outputs the built static site to ./dist
-          app-directory: "dist"
+          app-directory: 'dist'

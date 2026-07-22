@@ -1,125 +1,143 @@
-# Flightdeck — Vite + React + Bun (Meticulous.AI demo)
+# TaskFlow (demo app)
 
-A small, realistic single-page app for evaluating [Meticulous.AI](https://www.meticulous.ai)
-inside a QA workflow. It mirrors a typical internal tool: a sidebar layout, a
-dashboard with stats, a tasks table with create/filter/delete/status flows, a
-settings form, and simulated async loading — i.e. plenty of interactions for
-Meticulous to record and replay.
+A small **Vite + React + TypeScript** app, run on **Bun**, meant as a lightweight sandbox for
+trying out QA/testing tooling — in particular [Meticulous.ai](https://www.meticulous.ai/) — before
+wiring it into a larger, real project. It mirrors the shape of a typical mid-size React app:
 
-**Stack:** [Vite](https://vite.dev) · [React 19](https://react.dev) +
-TypeScript · [React Router](https://reactrouter.com) · [Bun](https://bun.sh)
-(runtime + package manager) · [Meticulous](https://www.meticulous.ai) (visual
-regression testing).
+- multi-page routing with an authenticated app shell (`react-router-dom`)
+- forms with client + "server" side validation and error states
+- an async, mock network layer with realistic latency (and a way to trigger failures on demand)
+- a small reusable UI kit (buttons, inputs, modal, badges, cards, table…)
+- unit/integration tests with Vitest + React Testing Library
+- ESLint + Prettier
+- a CI workflow, plus an optional Meticulous CI workflow
 
----
+## The app
 
-## Prerequisites
+**TaskFlow** is a minimal task-tracking dashboard:
 
-- [Bun](https://bun.sh) ≥ 1.3 (`curl -fsSL https://bun.sh/install | bash`)
+- `/login` — sign-in form (demo credentials pre-filled, see below)
+- `/` — dashboard with stats cards + recent tasks
+- `/tasks` — searchable/filterable task table, create/delete tasks, change status
+- `/settings` — a profile form
+
+Demo credentials (there's no real backend, just an in-memory mock — see
+[`src/services/api.ts`](src/services/api.ts)):
+
+```
+email:    avery@taskflow.dev
+password: password123
+```
+
+A couple of deliberate "escape hatches" are built in so QA flows and tooling like Meticulous have
+interesting states to exercise:
+
+- Signing in with any other password shows a realistic error banner.
+- Creating a task titled `fail` (case-insensitive) simulates a server error.
 
 ## Getting started
 
-```bash
-bun install      # install dependencies
-bun run dev      # start the dev server at http://localhost:5173
-```
-
-Other scripts:
+This project uses [Bun](https://bun.sh) as the package manager and dev runtime.
 
 ```bash
-bun run build      # type-check + production build to ./dist
-bun run preview    # preview the production build
-bun run serve      # serve the production build on http://localhost:3000
-bun run lint       # eslint
-bun run typecheck  # tsc --noEmit
+# install Bun if you don't have it yet
+curl -fsSL https://bun.sh/install | bash
+
+# install dependencies
+bun install
+
+# start the dev server (http://localhost:5173)
+bun run dev
 ```
+
+### Other scripts
+
+| Command                 | Description                                   |
+| ----------------------- | --------------------------------------------- |
+| `bun run dev`           | Start the Vite dev server                     |
+| `bun run build`         | Type-check and build for production (`dist/`) |
+| `bun run preview`       | Preview the production build locally          |
+| `bun run test`          | Run the test suite once                       |
+| `bun run test:watch`    | Run tests in watch mode                       |
+| `bun run test:coverage` | Run tests with coverage                       |
+| `bun run lint`          | Lint with ESLint                              |
+| `bun run typecheck`     | Type-check without emitting                   |
+| `bun run format`        | Format the codebase with Prettier             |
+| `bun run format:check`  | Check formatting without writing              |
 
 ## Project structure
 
 ```
-.
-├─ index.html                     # Meticulous recorder snippet lives here (first <head> script)
-├─ .github/workflows/meticulous.yml  # Meticulous CI check
-├─ src/
-│  ├─ main.tsx                    # app entry (Router + context providers)
-│  ├─ App.tsx                     # routes
-│  ├─ components/                 # Layout, Modal, TaskForm, StatCard, Badge
-│  ├─ context/AppContext.tsx      # tasks + settings state (localStorage-backed)
-│  ├─ lib/storage.ts              # tiny persistence layer that fakes network latency
-│  ├─ data/seed.ts                # seed tasks / team members
-│  └─ pages/                      # Dashboard, Tasks, Settings, NotFound
-└─ ...
+src/
+  components/
+    ui/        Reusable primitives: Button, Input, Select, Textarea, Card, Badge, Modal, EmptyState
+    layout/    App shell: Sidebar, Topbar, AppLayout, ProtectedRoute
+    tasks/     Feature components: StatsCards, TaskTable, TaskFormModal
+  context/     AuthContext (holds the signed-in user)
+  hooks/       useAuth, useTasks (data loading + mutations)
+  pages/       LoginPage, DashboardPage, TasksPage, SettingsPage, NotFoundPage
+  services/    api.ts — the mock "backend" (async, with latency + simulated errors)
+  data/        Seed data used by the mock backend
+  types/       Shared TypeScript types
+  test/        Test setup + a renderWithProviders helper
 ```
 
----
+## Testing with Meticulous.ai
 
-## Setting up Meticulous
+[Meticulous](https://www.meticulous.ai/) records real user sessions and replays them against new
+builds to catch visual/behavioral regressions automatically, without hand-written E2E tests. This
+project is already wired up for it end-to-end; you just need to add your own project token.
 
-Meticulous records real user sessions on non-production environments (like
-localhost) and, on every pull request, replays those sessions against your
-branch to surface visual/behavioural differences — no test scripts to write or
-maintain.
+### 1. Record sessions locally (and in staging/CI)
 
-### 1. Install the session recorder
+The [`@alwaysmeticulous/recorder-plugin`](https://www.npmjs.com/package/@alwaysmeticulous/recorder-plugin)
+dev dependency is already configured in [`vite.config.ts`](vite.config.ts). It injects the
+Meticulous recorder `<script>` tag automatically, but **only when a recording token is present** —
+so the app works normally out of the box with zero Meticulous setup.
 
-The recorder snippet is already wired into [`index.html`](./index.html) as the
-**first** `<script>` in `<head>` (it must load before anything else so it can
-capture all network activity):
+To turn recording on:
 
-```html
-<script
-  data-project-id="YOUR_PROJECT_ID"
-  src="https://snippet.meticulous.ai/v1/meticulous.js"
-></script>
-```
+1. Sign up at [app.meticulous.ai](https://app.meticulous.ai/signup) and create a project.
+2. Grab the project's recording token from the Meticulous dashboard.
+3. Copy `.env.example` to `.env.local` and set it:
 
-To activate it:
+   ```
+   VITE_METICULOUS_RECORDING_TOKEN=<your-recording-token>
+   ```
 
-1. Sign up at [app.meticulous.ai/signup](https://app.meticulous.ai/signup) and
-   create an organization + project.
-2. Copy your **Project ID** from the dashboard (Project Settings).
-3. Replace `YOUR_PROJECT_ID` in `index.html` with it.
+4. Restart `bun run dev`. Open the browser console and confirm you see the recorder initialize
+   (and that `window.Meticulous` exists).
 
-Then run the app locally (`bun run dev`) and click around. The recorder captures
-sessions on localhost automatically; you should see them appear in your
-Meticulous dashboard. `window.Meticulous` being defined in the browser console
-confirms the snippet loaded.
+`.env.local` is git-ignored, so your token stays local. See
+[Meticulous's recorder docs](https://app.meticulous.ai/docs/recorder-installation) for more on
+where else to enable recording (e.g. a staging deployment).
 
-> The recorder only records on localhost and other non-production environments by
-> default, so it is safe to commit the snippet. For production recording, contact
-> Meticulous support.
+### 2. Run Meticulous tests in CI
 
-> **Vite tip:** Meticulous also ships an official `@alwaysmeticulous/recorder-plugin`
-> Vite plugin that injects the snippet at build time (so you can scope it to
-> specific environments without editing `index.html`). The plain script tag used
-> here is the simplest way to get going while evaluating the tool.
-
-### 2. Run tests in CI
-
-[`.github/workflows/meticulous.yml`](./.github/workflows/meticulous.yml) builds
-the app with Bun and uploads the static `dist/` output using
-[`report-diffs-action/upload-assets`](https://github.com/alwaysmeticulous/report-diffs-action)
-— the recommended approach for static Vite sites. Meticulous hosts the build and
-runs the replays on its own infrastructure.
+[`.github/workflows/meticulous.yml`](.github/workflows/meticulous.yml) builds the app and uploads
+the static `dist/` output to Meticulous on every push to `main` and every pull request, using the
+[`upload-assets`](https://github.com/alwaysmeticulous/report-diffs-action) action (the recommended
+approach for static SPAs like this one).
 
 To enable it:
 
-1. In the Meticulous dashboard, open **Project Settings** and copy your **API token**.
-2. In GitHub: **Repo → Settings → Secrets and variables → Actions → New repository secret**.
-3. Name it `METICULOUS_API_TOKEN` and paste the token.
+1. In the Meticulous dashboard, copy your project's **API token** (this is different from the
+   recording token above).
+2. Add it as a repository secret named `METICULOUS_API_TOKEN` (Repo Settings → Secrets and
+   variables → Actions).
 
-Open a pull request and Meticulous will post a status check with a link to review
-any differences it detects. A reviewer accepts (updates the baseline) or rejects
-each diff.
+Until that secret exists, the workflow still runs your normal build but skips the Meticulous step,
+so it won't break CI on a fresh clone. Once the token is added, every PR gets a Meticulous status
+check comparing it against the base branch, with a link to review any diffs.
 
-Docs: [Recorder installation](https://app.meticulous.ai/docs/recorder-installation)
-· [GitHub Actions setup](https://app.meticulous.ai/docs/github-actions-v2)
+### Applying this to your real project
 
----
+The pattern here — a bundler plugin gated on an env var for recording, plus a CI job that uploads
+build output and is gated on a secret — is deliberately the same shape you'd use in a larger app.
+The main things to adapt when moving to your real project:
 
-## Notes
-
-- Data is stored in `localStorage`, so the app has no backend to run. Use
-  **Settings → Reset demo data** to restore the seed tasks.
-- The `lib/storage.ts` layer adds artificial latency (`VITE_API_LATENCY_MS`, see
-  `.env.example`) so you get realistic loading skeletons to record.
+- If it's server-rendered (Next.js, etc.), use the
+  [`upload-container`](https://app.meticulous.ai/docs/github-actions-v2) action instead of
+  `upload-assets`.
+- Swap the mock `src/services/api.ts` for real network calls — Meticulous records and replays
+  network responses too, which is most of the value once there's a real backend.
