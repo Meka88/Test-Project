@@ -129,13 +129,17 @@ URL in a browser and click around to generate sessions.
 
 One-time setup:
 
-1. In GitHub: **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
+1. In GitHub: **Settings → Pages → Build and deployment → Source = "GitHub Actions"**. This step is
+   **required and manual** — GitHub Pages can't be enabled from a workflow with the default token, so
+   the deploy workflow is manual-only to avoid failing checks before you've done this.
 2. (To record on the preview) add a repository secret named `METICULOUS_RECORDING_TOKEN`
    (**Settings → Secrets and variables → Actions**) with your Meticulous recording token. The Pages
    build injects it so the recorder is active on the deployed site. Recording tokens are client-side
    by design, so it's fine that it ends up in the shipped JS.
-3. Push to `main` (or run the workflow manually from the **Actions** tab). When it finishes, open the
-   Pages URL, interact with the app, and confirm `window.Meticulous` exists in the browser console.
+3. Run the deploy: **Actions → "Deploy preview to GitHub Pages" → Run workflow**. When it finishes,
+   open the Pages URL, interact with the app, and confirm `window.Meticulous` exists in the browser
+   console. (Once Pages is enabled, you can re-add a `push:` trigger to the workflow if you want it to
+   auto-deploy on every merge to `main`.)
 
 The base path and client-side routing are handled automatically for the `/<repo>/` subpath, and a
 `404.html` fallback is generated so deep links / refreshes work.

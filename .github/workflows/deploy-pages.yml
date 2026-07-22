@@ -4,17 +4,24 @@ name: Deploy preview to GitHub Pages
 # (e.g. https://<your-user>.github.io/<repo>/) and record Meticulous sessions
 # WITHOUT running anything locally.
 #
-# One-time repo setup:
+# This workflow is MANUAL (workflow_dispatch) on purpose: GitHub Pages must be
+# enabled once by a human first — it cannot be turned on from a workflow with the
+# default GITHUB_TOKEN ("Resource not accessible by integration"). Running it on
+# every push before Pages is enabled just produces a failing check, so instead you
+# run it deliberately once you're set up.
+#
+# One-time repo setup (required before the first run):
 #   1. Settings > Pages > Build and deployment > Source = "GitHub Actions".
 #   2. (Optional, to record sessions on the preview) add a secret named
 #      METICULOUS_RECORDING_TOKEN (Settings > Secrets and variables > Actions).
 #      Get the value from your Meticulous project settings. Recording tokens are
 #      client-side/public, so this ends up in the shipped JS by design.
 #
+# Then run it: Actions > "Deploy preview to GitHub Pages" > Run workflow. (Once
+# Pages is enabled you can re-add a `push:` trigger below if you want auto-deploys.)
+#
 # Docs: https://app.meticulous.ai/docs/recorder-installation
 on:
-  push:
-    branches: [main]
   workflow_dispatch: {}
 
 # Permissions required by the GitHub Pages deployment actions.
@@ -35,14 +42,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Configure GitHub Pages
-        # enablement: true turns GitHub Pages on (with "GitHub Actions" as the
-        # source) automatically, so you don't have to flip it on manually in
-        # Settings > Pages. Requires the `pages: write` permission set above.
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
