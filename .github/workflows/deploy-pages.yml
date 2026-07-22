@@ -1,0 +1,79 @@
+name: Deploy preview to GitHub Pages
+
+# Publishes the built app to GitHub Pages so you can open it in a real browser
+# (e.g. https://<your-user>.github.io/<repo>/) and record Meticulous sessions
+# WITHOUT running anything locally.
+#
+# One-time repo setup:
+#   1. Settings > Pages > Build and deployment > Source = "GitHub Actions".
+#   2. (Optional, to record sessions on the preview) add a secret named
+#      METICULOUS_RECORDING_TOKEN (Settings > Secrets and variables > Actions).
+#      Get the value from your Meticulous project settings. Recording tokens are
+#      client-side/public, so this ends up in the shipped JS by design.
+#
+# Docs: https://app.meticulous.ai/docs/recorder-installation
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Permissions required by the GitHub Pages deployment actions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent Pages deployment.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        env:
+          # Project Pages are served under /<repo>/, so assets and client-side
+          # routes need this base path.
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Activates the Meticulous recorder on the deployed preview. Safe to
+          # omit — the app still builds and runs, just without session recording.
+          VITE_METICULOUS_RECORDING_TOKEN: ${{ secrets.METICULOUS_RECORDING_TOKEN }}
+        run: bun run build
+
+      - name: Add SPA fallback + disable Jekyll
+        # Copying index.html to 404.html lets client-side routes (e.g. /tasks)
+        # work on direct navigation / refresh on GitHub Pages.
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
